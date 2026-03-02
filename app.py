@@ -178,7 +178,7 @@ def base_layout(title_text=None, title_size=16):
 DATASET_META = {
     "UK Gift Retailer — UCI Online Retail II": {
         "short_name": "UK Gift Retailer — UCI Online Retail II",
-        "heading":    "UK Gift Retailer — RFM Segmentation",
+        "heading":    "UK Gift Retailer",
         "description": (
             "Transactional data from a UK-based online gift and homeware retailer, "
             "covering December 2009 to December 2011. Customers are predominantly "
@@ -190,7 +190,7 @@ DATASET_META = {
     },
     "Instacart — US Grocery Delivery": {
         "short_name": "Instacart",
-        "heading":    "US Grocery Delivery — RFM Segmentation",
+        "heading":    "US Grocery Delivery",
         "description": (
             "Simulated grocery delivery behaviour modelled on Instacart's published "
             "platform statistics. Represents 8,000 customers with high purchase frequency "
@@ -203,7 +203,7 @@ DATASET_META = {
     },
     "SaaS Platform — B2B Subscriptions": {
         "short_name": "SaaS Subscriptions — B2B Software",
-        "heading":    "SaaS Subscriptions — RFM Segmentation",
+        "heading":    "SaaS Subscriptions",
         "description": (
             "Simulated B2B SaaS subscription data modelled on mid-market software "
             "platform benchmarks. Customers represent businesses on monthly or annual "
