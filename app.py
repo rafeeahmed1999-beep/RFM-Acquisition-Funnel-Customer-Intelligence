@@ -422,7 +422,7 @@ with st.sidebar:
 meta       = DATASET_META[dataset_choice]
 currency   = meta["currency"] if uploaded is None else "£"
 short_name = uploaded.name if uploaded else meta["short_name"]
-heading    = (uploaded.name + " — RFM Segmentation") if uploaded else meta["heading"]
+heading    = (uploaded.name) if uploaded else meta["heading"]
 desc_text  = "Custom uploaded dataset." if uploaded else meta["description"]
 
 with st.spinner("Loading dataset..."):
