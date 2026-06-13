@@ -100,4 +100,4 @@ Each segment also carries a migration risk indicator: the segment a customer is 
 
 ## Author
 
-Built by Rafee Ahmed as part of a Marketing Data Analyst portfolio.
+Built by Rafee Ahmed as part of a Data Analyst portfolio.
