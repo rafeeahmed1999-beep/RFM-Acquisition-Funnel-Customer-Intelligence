@@ -2,7 +2,15 @@
 
 A production-grade customer segmentation tool built on the UCI Online Retail II dataset, with support for additional preloaded industry datasets and custom data uploads.
 
-**[Live demo](https://your-app-name.streamlit.app)**
+**[Live demo](https://e-commerce-rfm-jx7qutfeykhr8p36wahyqz.streamlit.app/)**
+
+---
+
+## Demo
+
+![Automation Hub sending Critical-priority alerts to Slack via the n8n webhook](docs/demo.gif)
+
+The Automation Hub tab sends Critical-priority alerts to an n8n webhook, which routes each one to the right Slack channel in real time.
 
 ---
 
@@ -54,9 +62,10 @@ From this tab you can:
 
 1. In n8n, go to **Workflows → Import from File** and select `n8n/rfm_segment_alert_router.json` (or download it from the Automation Hub tab)
 2. The workflow exposes a webhook at `/webhook/rfm-alerts` that accepts the payload shape produced by the app: `{ source, dataset, generated_at, alert_count, alerts: [...] }`
-3. It splits the `alerts` array, routes `Critical` and `High` priority alerts to a Slack channel (per the `channel` field on each alert), and logs every alert to a Google Sheet for weekly review
+3. It splits the `alerts` array, assigns a Slack channel for each alert based on its `segment` (mapping held inside the workflow), routes `Critical` and `High` priority alerts to that channel, and logs every alert to a Google Sheet for weekly review
 4. Add your own Slack and Google Sheets credentials in n8n before activating — the template ships with placeholder credential IDs
 5. Paste your n8n webhook URL into the **Webhook URL** field in the Automation Hub tab to send alerts live
+6. Critical/High alerts pass through a Loop Over Items + Wait (1s) pair before posting to Slack, so larger batches don't trip the `chat.postMessage` rate limit (HTTP 429)
 
 ---
 

@@ -1,0 +1,43 @@
+name: Dispatch RFM Alerts
+
+on:
+  schedule:
+    # Daily at 08:00 UTC
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+    inputs:
+      priorities:
+        description: "Comma-separated priorities to dispatch"
+        required: false
+        default: "Critical,High"
+      dry_run:
+        description: "Build the payload without sending it to the webhook"
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run alert dispatcher
+        env:
+          WEBHOOK_URL: ${{ secrets.RFM_WEBHOOK_URL }}
+        run: |
+          ARGS="--priorities ${{ github.event.inputs.priorities || 'Critical,High' }}"
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          python scripts/dispatch_alerts.py $ARGS

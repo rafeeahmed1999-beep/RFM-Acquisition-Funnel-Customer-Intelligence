@@ -1,0 +1,16 @@
+name: Streamlit Keepalive
+
+on:
+  schedule:
+    # Every 6 hours — keeps the Streamlit Community Cloud app from sleeping
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the app
+        run: |
+          curl -sS -o /dev/null -w "HTTP %{http_code}\n" \
+            "https://e-commerce-rfm-jx7qutfeykhr8p36wahyqz.streamlit.app/"

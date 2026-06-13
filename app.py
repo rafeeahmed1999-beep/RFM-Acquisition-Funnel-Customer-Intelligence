@@ -6,7 +6,8 @@ import plotly.graph_objects as go
 import io
 import json
 import requests
-from datetime import datetime, timezone
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 st.set_page_config(
@@ -1248,7 +1249,7 @@ with tab7:
       Doing that manually means exporting a CSV, opening a CRM, and uploading a list every
       time segments shift. This tab closes that loop: it converts live RFM output into
       structured alert payloads and pushes them straight to a workflow automation platform
-      — n8n, Zapier, Make, or Power Automate — via webhook, so the right team is notified
+      via webhook, so the right team is notified
       the moment a customer crosses into an actionable segment. No manual export step,
       no stale lists.</p>
     </div>""", unsafe_allow_html=True)
@@ -1331,14 +1332,13 @@ with tab7:
     payload = {
         "source":       "rfm-customer-intelligence",
         "dataset":      short_name,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(ZoneInfo("Europe/London")).isoformat(),
         "alert_count":  len(queue),
         "alerts": [
             {
                 "customer_id": row["customer_id"],
                 "segment":     row["segment"],
                 "priority":    row["priority"],
-                "channel":     row["channel"],
                 "action":      row["action"],
                 "recency_days": int(row["recency"]),
                 "frequency":    int(row["frequency"]),
@@ -1361,7 +1361,7 @@ with tab7:
                 try:
                     resp = requests.post(webhook_url.strip(), json=payload, timeout=10)
                     if resp.ok:
-                        st.success(f"Sent {len(queue):,} alert(s) to webhook — response {resp.status_code}.")
+                        st.success(f"Sent {len(queue):,} alert(s) to webhook.")
                     else:
                         st.error(f"Webhook responded with status {resp.status_code}.")
                 except requests.RequestException as e:
