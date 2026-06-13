@@ -4,6 +4,9 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import io
+import json
+import requests
+from datetime import datetime, timezone
 from pathlib import Path
 
 st.set_page_config(
@@ -132,6 +135,17 @@ SEGMENT_MIGRATION = {
     "Promising":           ("Hibernating",      "60 days"),
     "Need Attention":      ("At Risk",          "30 days"),
     "Lost":                (None,               None),
+}
+
+# ─────────────────────────────────────────────
+# AUTOMATION HUB CONFIG — segment-triggered alert routing
+# ─────────────────────────────────────────────
+ALERT_ROUTING = {
+    "Cannot Lose Them": {"priority": "Critical", "channel": "#customer-success-urgent", "action": "Personal outreach — phone or account manager"},
+    "At Risk":          {"priority": "High",     "channel": "#customer-success",        "action": "Re-engagement email with time-limited incentive"},
+    "Need Attention":   {"priority": "Medium",   "channel": "#lifecycle-marketing",      "action": "Nurture sequence before they slip to At Risk"},
+    "New Customers":    {"priority": "Medium",   "channel": "#onboarding",               "action": "Onboarding sequence to drive second purchase"},
+    "Promising":        {"priority": "Low",      "channel": "#lifecycle-marketing",      "action": "Add to nurture campaign"},
 }
 
 # ─────────────────────────────────────────────
@@ -526,13 +540,14 @@ st.markdown("---")
 # ─────────────────────────────────────────────
 # TABS
 # ─────────────────────────────────────────────
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "Segment Overview",
     "RFM Distribution",
     "Cohort Retention",
     "Acquisition Funnel",
     "Customer Explorer",
     "Targeting Export",
+    "Automation Hub",
 ])
 
 # ══════════════════════════════════════════
@@ -1220,3 +1235,170 @@ with tab6:
           </div>
         </div>
         """, unsafe_allow_html=True)
+
+# ══════════════════════════════════════════
+# TAB 7 — AUTOMATION HUB (n8n / Zapier / Make webhook integration)
+# ══════════════════════════════════════════
+with tab7:
+    st.markdown("## Automation Hub")
+    st.markdown("""
+    <div class="insight-box">
+      <strong>What this does</strong>
+      <p>Every segment in this dashboard implies an action — re-engage, nurture, escalate.
+      Doing that manually means exporting a CSV, opening a CRM, and uploading a list every
+      time segments shift. This tab closes that loop: it converts live RFM output into
+      structured alert payloads and pushes them straight to a workflow automation platform
+      — n8n, Zapier, Make, or Power Automate — via webhook, so the right team is notified
+      the moment a customer crosses into an actionable segment. No manual export step,
+      no stale lists.</p>
+    </div>""", unsafe_allow_html=True)
+
+    # ── Build alert queue from segments with a defined routing rule ──
+    alert_segments = list(ALERT_ROUTING.keys())
+    alerts = rfm[rfm["segment"].isin(alert_segments)].copy()
+    alerts["priority"] = alerts["segment"].map(lambda s: ALERT_ROUTING[s]["priority"])
+    alerts["channel"]  = alerts["segment"].map(lambda s: ALERT_ROUTING[s]["channel"])
+    alerts["action"]   = alerts["segment"].map(lambda s: ALERT_ROUTING[s]["action"])
+    priority_order = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3}
+    alerts = alerts.sort_values(by="priority", key=lambda s: s.map(priority_order))
+
+    au1, au2, au3, au4 = st.columns(4)
+    with au1: metric("Active Alerts",        f"{len(alerts):,}")
+    with au2: metric("Critical Priority",    f"{(alerts['priority'] == 'Critical').sum():,}")
+    with au3: metric("Revenue Behind Alerts", f"{currency}{alerts['monetary'].sum():,.0f}")
+    with au4: metric("Routing Channels",     f"{alerts['channel'].nunique()}")
+
+    st.markdown("---")
+
+    au_c1, au_c2 = st.columns([1, 1])
+
+    with au_c1:
+        by_priority = (alerts.groupby("priority")
+                              .agg(customers=("customer_id", "count"),
+                                   revenue=("monetary", "sum"))
+                              .reindex(["Critical", "High", "Medium", "Low"])
+                              .dropna(how="all").fillna(0).reset_index())
+        priority_colours = {"Critical": "#d4624a", "High": "#e8630a",
+                             "Medium": "#f0c040", "Low": "#7a8db8"}
+        fig_alert = go.Figure(go.Bar(
+            x=by_priority["customers"],
+            y=by_priority["priority"],
+            orientation="h",
+            marker_color=[priority_colours.get(p, "#888") for p in by_priority["priority"]],
+            text=[f"{int(v):,}" for v in by_priority["customers"]],
+            textposition="outside",
+            textfont=dict(family="DM Mono", size=10, color="#888"),
+        ))
+        fig_alert.update_layout(
+            **base_layout("Alerts by Priority"),
+            showlegend=False,
+            xaxis=dict(showticklabels=False, gridcolor="#1a1a25", zerolinecolor="#1a1a25"),
+            yaxis=dict(gridcolor="rgba(0,0,0,0)", tickfont=dict(size=11, color="#888")),
+        )
+        st.plotly_chart(fig_alert, use_container_width=True)
+
+    with au_c2:
+        st.markdown("**Routing table**")
+        routing_tbl = pd.DataFrame([
+            {"Segment": seg, "Priority": cfg["priority"], "Channel": cfg["channel"], "Action": cfg["action"]}
+            for seg, cfg in ALERT_ROUTING.items()
+        ])
+        st.dataframe(routing_tbl, use_container_width=True, hide_index=True, height=210)
+        st.caption(
+            "Each segment maps to a priority, a routing channel, and a recommended "
+            "action — this is the logic encoded in the n8n workflow below."
+        )
+
+    st.markdown("---")
+    st.markdown("### Send alerts to your automation platform")
+
+    cfg1, cfg2 = st.columns([2, 1])
+    with cfg1:
+        webhook_url = st.text_input(
+            "Webhook URL",
+            placeholder="https://your-instance.app.n8n.cloud/webhook/rfm-alerts",
+            help="Paste an n8n, Zapier, or Make webhook URL. Leave blank to preview the payload only.",
+        )
+    with cfg2:
+        send_priorities = st.multiselect(
+            "Priorities to send",
+            options=["Critical", "High", "Medium", "Low"],
+            default=["Critical", "High"],
+        )
+
+    queue = alerts[alerts["priority"].isin(send_priorities)]
+
+    payload = {
+        "source":       "rfm-customer-intelligence",
+        "dataset":      short_name,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "alert_count":  len(queue),
+        "alerts": [
+            {
+                "customer_id": row["customer_id"],
+                "segment":     row["segment"],
+                "priority":    row["priority"],
+                "channel":     row["channel"],
+                "action":      row["action"],
+                "recency_days": int(row["recency"]),
+                "frequency":    int(row["frequency"]),
+                "monetary":     round(float(row["monetary"]), 2),
+                "rfm_score":    row["rfm_score"],
+            }
+            for _, row in queue.head(200).iterrows()
+        ],
+    }
+
+    with st.expander(f"Preview payload — {len(queue):,} alert(s) selected (showing up to 200)"):
+        st.json(payload if len(queue) else {"alerts": [], "note": "No alerts match the selected priorities."})
+
+    send_col, dl_col = st.columns([1, 1])
+    with send_col:
+        if st.button("→ Send alerts to webhook", type="primary", disabled=(len(queue) == 0)):
+            if not webhook_url.strip():
+                st.warning("Add a webhook URL above to send live — showing preview only for now.")
+            else:
+                try:
+                    resp = requests.post(webhook_url.strip(), json=payload, timeout=10)
+                    if resp.ok:
+                        st.success(f"Sent {len(queue):,} alert(s) to webhook — response {resp.status_code}.")
+                    else:
+                        st.error(f"Webhook responded with status {resp.status_code}.")
+                except requests.RequestException as e:
+                    st.error(f"Could not reach webhook: {e}")
+
+    with dl_col:
+        st.download_button(
+            label="↓ Download alert payload (JSON)",
+            data=json.dumps(payload, indent=2).encode("utf-8"),
+            file_name="rfm_automation_alerts.json",
+            mime="application/json",
+        )
+
+    st.markdown("---")
+    st.markdown("### n8n workflow template")
+    st.markdown("""
+    <div class="insight-box">
+      <strong>How to use this</strong>
+      <p>Download the workflow below and import it directly into n8n
+      (Workflows → Import from File). It exposes a webhook that accepts the exact
+      payload shape produced above, routes each alert by <code>priority</code>
+      using a Switch node, and forwards Critical/High alerts to a Slack channel
+      while logging everything to a sheet for weekly review. Swap in your own
+      Slack and Sheets credentials and the workflow runs end-to-end against this
+      dashboard's live output.</p>
+    </div>""", unsafe_allow_html=True)
+
+    n8n_path = Path(__file__).parent / "n8n" / "rfm_segment_alert_router.json"
+    try:
+        n8n_workflow = n8n_path.read_text(encoding="utf-8")
+        st.download_button(
+            label="↓ Download n8n workflow (rfm_segment_alert_router.json)",
+            data=n8n_workflow.encode("utf-8"),
+            file_name="rfm_segment_alert_router.json",
+            mime="application/json",
+        )
+        with st.expander("Preview workflow JSON"):
+            st.code(n8n_workflow, language="json")
+    except FileNotFoundError:
+        st.info("Workflow template not found in /n8n — add rfm_segment_alert_router.json to enable download.")

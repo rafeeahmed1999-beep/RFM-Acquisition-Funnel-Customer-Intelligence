@@ -1,0 +1,178 @@
+{
+  "name": "RFM Segment Alert Router",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rfm-alerts",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "1f6a1e10-0001-4a1a-8b1a-rfmwebhook01",
+      "name": "Webhook - RFM Alerts",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 320],
+      "webhookId": "rfm-alerts"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "body.alerts",
+        "options": {}
+      },
+      "id": "1f6a1e10-0002-4a1a-8b1a-splitoutalrt",
+      "name": "Split Out Alerts",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [460, 320]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.priority}}",
+                    "rightValue": "Critical",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Critical"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.priority}}",
+                    "rightValue": "High",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "High"
+            }
+          ]
+        },
+        "fallbackOutput": "extra",
+        "options": {}
+      },
+      "id": "1f6a1e10-0003-4a1a-8b1a-switchpriori",
+      "name": "Switch by Priority",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [680, 320]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "msg-text",
+              "name": "text",
+              "type": "string",
+              "value": "=:rotating_light: *{{$json.priority}}* alert — customer *{{$json.customer_id}}* moved into *{{$json.segment}}*.\\nAction: {{$json.action}}\\nRecency: {{$json.recency_days}}d · Orders: {{$json.frequency}} · Lifetime value: £{{$json.monetary}}\\nRoute: {{$json.channel}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1f6a1e10-0004-4a1a-8b1a-formatslackm",
+      "name": "Format Slack Message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [920, 200]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": "={{$json.channel}}",
+        "text": "={{$json.text}}",
+        "otherOptions": {}
+      },
+      "id": "1f6a1e10-0005-4a1a-8b1a-notifyslack0",
+      "name": "Notify Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [1140, 200],
+      "credentials": {
+        "slackApi": { "id": "REPLACE_WITH_CREDENTIAL_ID", "name": "Slack account" }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "mode": "id", "value": "REPLACE_WITH_GOOGLE_SHEET_ID" },
+        "sheetName": { "mode": "name", "value": "Alerts" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "customer_id": "={{$json.customer_id}}",
+            "segment": "={{$json.segment}}",
+            "priority": "={{$json.priority}}",
+            "channel": "={{$json.channel}}",
+            "action": "={{$json.action}}",
+            "recency_days": "={{$json.recency_days}}",
+            "frequency": "={{$json.frequency}}",
+            "monetary": "={{$json.monetary}}",
+            "logged_at": "={{$now.toISO()}}"
+          }
+        },
+        "options": {}
+      },
+      "id": "1f6a1e10-0006-4a1a-8b1a-logtosheet01",
+      "name": "Log Alert to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [920, 460],
+      "credentials": {
+        "googleSheetsOAuth2Api": { "id": "REPLACE_WITH_CREDENTIAL_ID", "name": "Google Sheets account" }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook - RFM Alerts": {
+      "main": [
+        [ { "node": "Split Out Alerts", "type": "main", "index": 0 } ]
+      ]
+    },
+    "Split Out Alerts": {
+      "main": [
+        [
+          { "node": "Switch by Priority", "type": "main", "index": 0 },
+          { "node": "Log Alert to Sheet", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Switch by Priority": {
+      "main": [
+        [ { "node": "Format Slack Message", "type": "main", "index": 0 } ],
+        [ { "node": "Format Slack Message", "type": "main", "index": 0 } ],
+        []
+      ]
+    },
+    "Format Slack Message": {
+      "main": [
+        [ { "node": "Notify Slack", "type": "main", "index": 0 } ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "description": "Receives RFM segment alerts from the Customer Intelligence dashboard's Automation Hub. Splits the alert batch, routes Critical/High priority items to Slack, and logs every alert to a Google Sheet for weekly review. Replace the Slack and Google Sheets credential IDs before activating."
+  }
+}

@@ -39,6 +39,27 @@ The sidebar accepts any Excel (.xlsx) or CSV file that follows the UCI Online Re
 
 ---
 
+## Automation Hub
+
+The **Automation Hub** tab turns segment membership into action. Every customer in a segment with a defined routing rule (Cannot Lose Them, At Risk, Need Attention, New Customers, Promising) is built into an alert with a priority (Critical/High/Medium/Low), a target channel, and a recommended action — all visible in an editable routing table.
+
+From this tab you can:
+
+- Review alert volume and revenue at risk by priority
+- Preview the exact JSON payload that would be sent for the selected priorities
+- Send that payload directly to a webhook (n8n, Zapier, Make, or Power Automate) via `requests`, or download it as a JSON file
+- Download a ready-to-import **n8n workflow** (`n8n/rfm_segment_alert_router.json`)
+
+### Using the n8n workflow
+
+1. In n8n, go to **Workflows → Import from File** and select `n8n/rfm_segment_alert_router.json` (or download it from the Automation Hub tab)
+2. The workflow exposes a webhook at `/webhook/rfm-alerts` that accepts the payload shape produced by the app: `{ source, dataset, generated_at, alert_count, alerts: [...] }`
+3. It splits the `alerts` array, routes `Critical` and `High` priority alerts to a Slack channel (per the `channel` field on each alert), and logs every alert to a Google Sheet for weekly review
+4. Add your own Slack and Google Sheets credentials in n8n before activating — the template ships with placeholder credential IDs
+5. Paste your n8n webhook URL into the **Webhook URL** field in the Automation Hub tab to send alerts live
+
+---
+
 ## RFM methodology
 
 **Recency:** days since last purchase (lower is better)
