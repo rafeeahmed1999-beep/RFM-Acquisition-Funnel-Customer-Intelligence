@@ -6,14 +6,6 @@ A production-grade customer segmentation tool built on the UCI Online Retail II 
 
 ---
 
-## Demo
-
-![Automation Hub sending Critical-priority alerts to Slack via the n8n webhook](docs/demo.gif)
-
-The Automation Hub tab sends Critical-priority alerts to an n8n webhook, which routes each one to the right Slack channel in real time.
-
----
-
 ## What it does
 
 - Loads and cleans transactional data, resolving returns, cancellations, and stock adjustments
@@ -66,6 +58,14 @@ From this tab you can:
 4. Add your own Slack and Google Sheets credentials in n8n before activating — the template ships with placeholder credential IDs
 5. Paste your n8n webhook URL into the **Webhook URL** field in the Automation Hub tab to send alerts live
 6. Critical/High alerts pass through a Loop Over Items + Wait (1s) pair before posting to Slack, so larger batches don't trip the `chat.postMessage` rate limit (HTTP 429)
+
+---
+
+## Demo
+
+![Automation Hub sending Critical-priority alerts to Slack via the n8n webhook](docs/demo.gif)
+
+The Automation Hub tab sends Critical-priority alerts to an n8n webhook, which routes each one to the right Slack channel in real time.
 
 ---
 
