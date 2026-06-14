@@ -1,4 +1,4 @@
-# RFM Customer Intelligence Dashboard
+# RFM & Acquisition Funnel Customer Intelligence
 
 A production-grade customer segmentation tool built on the UCI Online Retail II dataset, with support for additional preloaded industry datasets and custom data uploads.
 
