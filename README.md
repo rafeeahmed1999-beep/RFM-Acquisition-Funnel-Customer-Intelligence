@@ -43,7 +43,7 @@ The Instacart and SaaS datasets are synthetically generated to illustrate how RF
 
 ## Custom dataset upload
 
-The sidebar accepts any Excel (.xlsx) or CSV file that follows the UCI Online Retail II column format. The app expects: `Invoice`, `CustomerID`, `InvoiceDate`, `Quantity`, `UnitPrice`. Returns (invoices prefixed with C) and stock adjustments (prefixed with A) are automatically excluded. The uploaded dataset replaces the selected preloaded dataset for the duration of the session.
+The sidebar accepts any Excel (.xlsx) or CSV file that follows the UCI Online Retail II column format. The app expects: `Invoice`, `CustomerID`, `InvoiceDate`, `Quantity`, `UnitPrice`. Returns invoices (prefixed with C) and stock adjustments (prefixed with A) are automatically excluded. The uploaded dataset replaces the selected preloaded dataset for the duration of the session.
 
 ---
 
@@ -109,4 +109,4 @@ Each segment also carries a migration risk indicator: the segment a customer is 
 
 ## Author
 
-Built by Rafee Ahmed as part of a Marketing Data Analyst portfolio.
+Built by Rafee Ahmed as part of a Data Analyst portfolio.
